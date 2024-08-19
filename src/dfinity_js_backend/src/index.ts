@@ -330,7 +330,7 @@ export default Canister({
     return Ok(donorProfiles);
   }),
 
-  // Funtion to delete a Donor Profile
+  // Function to delete a Donor Profile
   deleteDonorProfile: update([text], Result(Null, Message), (donorId) => {
     const donorProfileOpt = donorProfileStorage.get(donorId);
 
@@ -838,7 +838,7 @@ export default Canister({
       const reserve = pendingReserveOpt.Some;
       const updatedReserve = {
         ...reserve,
-        status: { Completed: "COMPLETED" },
+        status: { Completed: "Completed" },
         paid_at_block: Some(block),
       };
 
@@ -991,6 +991,83 @@ export default Canister({
     }
 
     return Ok(donationReports);
+  }),
+
+  // New function to cancel a donation (if the payment is not completed)
+  cancelDonationReserve: update([nat64], Result(Null, Message), (memo) => {
+    const pendingReserveOpt = pendingReserves.get(memo);
+
+    if ("None" in pendingReserveOpt) {
+      return Err({
+        NotFound: `No pending donation reserve found for memo=${memo}`,
+      });
+    }
+
+    const reserve = pendingReserveOpt.Some;
+
+    // Update the reserve status to Cancelled
+    const updatedReserve = {
+      ...reserve,
+      status: { Cancelled: "Cancelled" },
+    };
+    pendingReserves.insert(memo, updatedReserve);
+
+    // Log the cancellation
+    console.log(`Donation reserve cancelled: ${reserve.id}`);
+
+    return Ok(null);
+  }),
+
+  // New function to reactivate a donor profile
+  reactivateDonorProfile: update([text], Result(DonorProfile, Message), (donorId) => {
+    const donorProfileOpt = donorProfileStorage.get(donorId);
+
+    if ("None" in donorProfileOpt) {
+      return Err({
+        NotFound: `Donor profile with id=${donorId} not found`,
+      });
+    }
+
+    const donorProfile = donorProfileOpt.Some;
+
+    if (donorProfile.status !== "Suspended") {
+      return Err({ Error: `Donor profile is not suspended` });
+    }
+
+    // Reactivate the donor profile
+    const updatedDonorProfile = {
+      ...donorProfile,
+      status: "Active",
+    };
+    donorProfileStorage.insert(donorId, updatedDonorProfile);
+
+    return Ok(updatedDonorProfile);
+  }),
+
+  // New function to suspend a charity profile
+  suspendCharityProfile: update([text], Result(Charity, Message), (charityId) => {
+    const charityProfileOpt = charityProfileStorage.get(charityId);
+
+    if ("None" in charityProfileOpt) {
+      return Err({
+        NotFound: `Charity profile with id=${charityId} not found`,
+      });
+    }
+
+    const charityProfile = charityProfileOpt.Some;
+
+    if (charityProfile.status === "Suspended") {
+      return Err({ Error: `Charity profile is already suspended` });
+    }
+
+    // Suspend the charity profile
+    const updatedCharityProfile = {
+      ...charityProfile,
+      status: "Suspended",
+    };
+    charityProfileStorage.insert(charityId, updatedCharityProfile);
+
+    return Ok(updatedCharityProfile);
   }),
 });
 
